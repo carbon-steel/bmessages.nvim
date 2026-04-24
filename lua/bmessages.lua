@@ -108,7 +108,7 @@ local function run_vim_cmd(options)
 end
 
 local function create_messages_buffer(new_options)
-	local options = merge_options(M.options, new_options)
+	local options = merge_options(M.options or with_defaults({}), new_options)
 
 	if is_bmessages_buffer_open(options) then
 		if M.current_split_type == options.split_type then
