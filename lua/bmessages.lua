@@ -210,5 +210,5 @@ end
 -- Users can call this function directly in lua with: require("bmesssages").toggle()
 M.toggle = create_messages_buffer
 
-M.options = nil
+M.setup({})
 return M
