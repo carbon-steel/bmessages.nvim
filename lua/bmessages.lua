@@ -1,13 +1,6 @@
 -- Author: Ariel Frischer
 -- email: arielfrischer@gmail.com
 
--- Run cleanup from a previous load (e.g. ReloadModule) to stop the active
--- timer and delete the open buffer before state is reset.
-if _G._bmessages_cleanup then
-	pcall(_G._bmessages_cleanup)
-	_G._bmessages_cleanup = nil
-end
-
 -- Clearing the augroup on every load removes all autocmds from previous loads.
 local augroup = vim.api.nvim_create_augroup("bmessages", { clear = true })
 
@@ -120,6 +113,15 @@ end
 local function create_messages_buffer(new_options)
 	local options = merge_options(M.options or with_defaults({}), new_options)
 
+	-- Close any timer left over from a previous session (e.g. after ReloadModule).
+	if _G._bmessages_timer then
+		pcall(function()
+			_G._bmessages_timer:stop()
+			_G._bmessages_timer:close()
+		end)
+		_G._bmessages_timer = nil
+	end
+
 	if is_bmessages_buffer_open(options) then
 		if M.current_split_type == options.split_type then
 			vim.api.nvim_buf_delete(vim.fn.bufnr(options.buffer_name), { force = true })
@@ -142,33 +144,21 @@ local function create_messages_buffer(new_options)
 	update_fn()
 
 	local timer = vim.loop.new_timer()
+	_G._bmessages_timer = timer
+
 	local function close_timer()
 		timer:stop()
 		timer:close()
 		timer = nil
-	end
-
-	-- Cleanup thunk for ReloadModule: stops the timer and deletes the buffer.
-	_G._bmessages_cleanup = function()
-		if timer then
-			close_timer()
-		end
-		local bufnr = vim.fn.bufnr(options.buffer_name)
-		if vim.api.nvim_buf_is_valid(bufnr) then
-			pcall(vim.api.nvim_buf_delete, bufnr, { force = true })
-		end
+		_G._bmessages_timer = nil
 	end
 
 	if not options.use_timer then
-		if timer then
-			close_timer()
-		end
+		close_timer()
 		return nil
 	end
 
-	if options.use_timer and timer then
-		timer:start(options.timer_interval, options.timer_interval, vim.schedule_wrap(update_fn))
-	end
+	timer:start(options.timer_interval, options.timer_interval, vim.schedule_wrap(update_fn))
 
 	vim.api.nvim_create_autocmd({ "BufWipeout", "BufDelete" }, {
 		group = augroup,
@@ -177,7 +167,6 @@ local function create_messages_buffer(new_options)
 			if timer then
 				close_timer()
 			end
-			_G._bmessages_cleanup = nil
 		end,
 	})
 end
@@ -192,7 +181,7 @@ function M.setup(options)
 		return
 	end
 
-	-- Delete before recreating so setup() is safe to call after ReloadModule.
+	-- Delete before recreating so setup() is safe to call again after ReloadModule.
 	for _, cmd in ipairs(user_commands) do
 		pcall(vim.api.nvim_del_user_command, cmd)
 	end
