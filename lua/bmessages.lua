@@ -1,11 +1,15 @@
 -- Author: Ariel Frischer
 -- email: arielfrischer@gmail.com
 
--- Run cleanup from a previous load (e.g. ReloadModule) to stop leaked timers.
+-- Run cleanup from a previous load (e.g. ReloadModule) to stop the active
+-- timer and delete the open buffer before state is reset.
 if _G._bmessages_cleanup then
 	pcall(_G._bmessages_cleanup)
 	_G._bmessages_cleanup = nil
 end
+
+-- Clearing the augroup on every load removes all autocmds from previous loads.
+local augroup = vim.api.nvim_create_augroup("bmessages", { clear = true })
 
 local M = {}
 M.current_split_type = nil
@@ -144,10 +148,14 @@ local function create_messages_buffer(new_options)
 		timer = nil
 	end
 
-	-- Register cleanup so a future ReloadModule can stop this timer.
+	-- Cleanup thunk for ReloadModule: stops the timer and deletes the buffer.
 	_G._bmessages_cleanup = function()
 		if timer then
 			close_timer()
+		end
+		local bufnr = vim.fn.bufnr(options.buffer_name)
+		if vim.api.nvim_buf_is_valid(bufnr) then
+			pcall(vim.api.nvim_buf_delete, bufnr, { force = true })
 		end
 	end
 
@@ -163,14 +171,18 @@ local function create_messages_buffer(new_options)
 	end
 
 	vim.api.nvim_create_autocmd({ "BufWipeout", "BufDelete" }, {
+		group = augroup,
 		pattern = options.buffer_name,
 		callback = function()
 			if timer then
 				close_timer()
 			end
+			_G._bmessages_cleanup = nil
 		end,
 	})
 end
+
+local user_commands = { "Bmessages", "Bmessagesvs", "Bmessagessp", "BmessagesEdit" }
 
 -- This function is supposed to be called explicitly by users to configure this plugin
 function M.setup(options)
@@ -178,6 +190,11 @@ function M.setup(options)
 
 	if M.options.disable_create_user_commands then
 		return
+	end
+
+	-- Delete before recreating so setup() is safe to call after ReloadModule.
+	for _, cmd in ipairs(user_commands) do
+		pcall(vim.api.nvim_del_user_command, cmd)
 	end
 
 	vim.api.nvim_create_user_command("Bmessages", function()
