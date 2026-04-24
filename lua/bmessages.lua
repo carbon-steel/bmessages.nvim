@@ -1,6 +1,12 @@
 -- Author: Ariel Frischer
 -- email: arielfrischer@gmail.com
 
+-- Run cleanup from a previous load (e.g. ReloadModule) to stop leaked timers.
+if _G._bmessages_cleanup then
+	pcall(_G._bmessages_cleanup)
+	_G._bmessages_cleanup = nil
+end
+
 local M = {}
 M.current_split_type = nil
 
@@ -136,6 +142,13 @@ local function create_messages_buffer(new_options)
 		timer:stop()
 		timer:close()
 		timer = nil
+	end
+
+	-- Register cleanup so a future ReloadModule can stop this timer.
+	_G._bmessages_cleanup = function()
+		if timer then
+			close_timer()
+		end
 	end
 
 	if not options.use_timer then
