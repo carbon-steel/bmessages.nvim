@@ -48,6 +48,16 @@ describe("bmessages plugin", function()
       assert.equals(2, after_buf_count)
       assert.equals(bmessages.current_split_type, "split")
     end)
+
+    it("should open buffer in current window with split_type 'current'", function()
+      local win_count = #vim.api.nvim_list_wins()
+      bmessages.toggle({ split_type = "current" })
+      local after_win_count = #vim.api.nvim_list_wins()
+
+      assert.equals(win_count, after_win_count)
+      assert.equals(bmessages.current_split_type, "current")
+      assert.is_true(buffer_exists("bmessages_buffer"))
+    end)
   end)
 
   it("should execute :Bmessages command correctly", function()

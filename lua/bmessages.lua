@@ -87,6 +87,11 @@ local function create_raw_buffer(options)
 end
 
 local function run_vim_cmd(options)
+	if options.split_type == "current" then
+		vim.cmd("enew")
+		return
+	end
+
 	local cmd = options.split_type
 
 	if cmd == "vsplit" and options.split_size_vsplit ~= nil then

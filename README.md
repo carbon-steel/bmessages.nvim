@@ -83,7 +83,8 @@ Given options are the default values.
 local opts = {
   -- Time in milliseconds between each update of the messages buffer.
   timer_interval = 1000,
-  -- Default split type for the messages buffer ('vsplit' or 'split').
+  -- Default split type for the messages buffer ('vsplit', 'split', or 'current').
+  -- 'current' opens the buffer in the current window without creating a split.
   split_type = "vsplit",
   -- Default split direction for the messages buffer ('topleft' or 'botright').
   split_direction = nil,
