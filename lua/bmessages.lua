@@ -147,8 +147,8 @@ local function create_messages_buffer(new_options)
 	_G._bmessages_timer = timer
 
 	local function close_timer()
-		timer:stop()
-		timer:close()
+		pcall(function() timer:stop() end)
+		pcall(function() timer:close() end)
 		timer = nil
 		_G._bmessages_timer = nil
 	end
